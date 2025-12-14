@@ -122,3 +122,22 @@ def jacobian_add(P, Q):
     Z3 = f_mul(f_mul(Z1, Z2), H)  #13 #14
 
     return (X3 % p, Y3 % p, Z3 % p)
+from field import p
+
+def jacobian_to_affine(P):
+    """
+    Convert Jacobian point to affine coordinates.
+    P = (X, Y, Z)
+    Returns (x, y) or None if point at infinity.
+    """
+    X, Y, Z = P
+
+    if Z == 0:
+        return None
+
+    Z_inv = pow(Z, p - 2, p)
+
+    x = (X * Z_inv * Z_inv) % p
+    y = (Y * Z_inv * Z_inv * Z_inv) % p
+
+    return (x, y)
