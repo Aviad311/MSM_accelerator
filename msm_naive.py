@@ -1,4 +1,7 @@
 from field import p, f_add, f_sub, f_mul, f_inv
+import op_counter
+
+
 
 # ------------------------------------------------------------
 # Affine point operations on secp256k1
@@ -23,6 +26,8 @@ def affine_add(P, Q):
     P, Q are affine points or None (infinity).
     Returns affine point or None.
     """
+    global affine_add_count
+    op_counter.affine_add_count += 1
     if P is None:
         return Q
     if Q is None:

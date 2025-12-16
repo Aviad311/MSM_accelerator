@@ -1,10 +1,13 @@
 from field import f_add, f_sub, f_mul, f_inv, f_neg, p, INF
+import op_counter
+
 
 # ----------------------------------------------------------
 #  Jacobian Point Doubling
 # ----------------------------------------------------------
 
 def jacobian_double(P):
+    op_counter.jacobian_double_count += 1
     X1, Y1, Z1 = P
 
     if Z1 == 0 or Y1 == 0:
@@ -39,6 +42,7 @@ def jacobian_double(P):
 # ----------------------------------------------------------
 
 def jacobian_mixed_add(P, Q):
+    op_counter.jacobian_mixed_add_count += 1
     X1, Y1, Z1 = P
     x2, y2 = Q   # Affine (Z2 = 1)
 
@@ -77,6 +81,7 @@ def jacobian_mixed_add(P, Q):
 
 
 def jacobian_add(P, Q):
+    op_counter.jacobian_add_count += 1
 
     X1, Y1, Z1 = P
     X2, Y2, Z2 = Q

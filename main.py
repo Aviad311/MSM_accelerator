@@ -3,7 +3,14 @@ from jacobian import jacobian_to_affine
 from msm_naive import msm_naive, is_on_curve
 from msm_reference import msm_reference
 from msm_pippenger import msm_pippenger
+from op_counter import reset_counters, print_counters
+import op_counter
 
+import random
+
+def generate_random_scalars(num_scalars, bits=32):
+    max_val = (1 << bits) - 1
+    return [random.randint(1, max_val) for _ in range(num_scalars)]
 
 # ------------------------------------------------------------
 # Base point of secp256k1
@@ -34,6 +41,29 @@ def generate_points_from_base(base_point, scalars):
 
 
 # ------------------------------------------------------------
+# Pretty print comparison table
+# ------------------------------------------------------------
+
+def print_comparison_table():
+    print("\n================ Operation Count Comparison ================")
+    print(f"{'Model':<15} | {'Affine add':>10} | {'Jac add':>9} | {'Mixed add':>10} | {'Doubling':>9}")
+    print("-" * 65)
+    for name, c in [
+        ("Naive", naive_counts),
+        ("Reference", reference_counts),
+        ("Pippenger", pippenger_counts),
+    ]:
+        print(
+            f"{name:<15} | "
+            f"{c['affine']:>10} | "
+            f"{c['jac']:>9} | "
+            f"{c['mixed']:>10} | "
+            f"{c['double']:>9}"
+        )
+    print("=" * 65)
+
+
+# ------------------------------------------------------------
 # Main test driver
 # ------------------------------------------------------------
 
@@ -43,11 +73,11 @@ def main():
     # Parameters
     # --------------------------------------------------------
 
-    w = 4   # small window for debugging
-    scalars = [
-        0x12345, 0x23456, 0x34567, 0x45678, 0x56789,
-        0x6789A, 0x789AB, 0x89ABC, 0x9ABCD, 0xABCDE
-    ]
+    w = 8  # window size (small for debugging)
+    scalars = generate_random_scalars(num_scalars=200, bits=32)
+
+    for s in scalars:
+        print(hex(s))
 
     # --------------------------------------------------------
     # Generate curve points
@@ -60,37 +90,73 @@ def main():
     # Naive MSM (Affine)
     # --------------------------------------------------------
 
-    print("[*] Running naive MSM...")
+    print("\n[*] Running Naive MSM...")
+    reset_counters()
     R_naive = msm_naive(scalars, points)
     assert is_on_curve(R_naive)
+    print("Naive MSM result:", R_naive)
+    print_counters("Naive MSM")
+
+    global naive_counts
+    naive_counts = {
+        "affine": op_counter.affine_add_count,
+        "jac": op_counter.jacobian_add_count,
+        "mixed": op_counter.jacobian_mixed_add_count,
+        "double": op_counter.jacobian_double_count,
+    }
 
     # --------------------------------------------------------
     # Reference MSM (Window + Buckets)
     # --------------------------------------------------------
 
-    print("[*] Running reference MSM...")
+    print("\n[*] Running Reference MSM...")
+    reset_counters()
     R_ref_jacobian = msm_reference(scalars, points, w=w)
     R_ref = jacobian_to_affine(R_ref_jacobian)
     assert is_on_curve(R_ref)
+    print("Reference MSM result:", R_ref)
+    print_counters("Reference MSM")
+
+    global reference_counts
+    reference_counts = {
+        "affine": op_counter.affine_add_count,
+        "jac": op_counter.jacobian_add_count,
+        "mixed": op_counter.jacobian_mixed_add_count,
+        "double": op_counter.jacobian_double_count,
+    }
 
     # --------------------------------------------------------
-    # Compare results
+    # Pippenger MSM (Fast)
     # --------------------------------------------------------
 
-    print("\nResults:")
-    print("Naive MSM:     ", R_naive)
-    print("Reference MSM: ", R_ref)
-
-    assert R_naive == R_ref
-    print("\n✅ Reference MSM matches naive MSM")
-    print("[*] Running Pippenger MSM...")
+    print("\n[*] Running Pippenger MSM...")
+    reset_counters()
     R_fast_jacobian = msm_pippenger(scalars, points, w=w)
     R_fast = jacobian_to_affine(R_fast_jacobian)
+    assert is_on_curve(R_fast)
+    print("Pippenger MSM result:", R_fast)
+    print_counters("Pippenger MSM")
 
-    print("Pippenger MSM:", R_fast)
+    global pippenger_counts
+    pippenger_counts = {
+        "affine": op_counter.affine_add_count,
+        "jac": op_counter.jacobian_add_count,
+        "mixed": op_counter.jacobian_mixed_add_count,
+        "double": op_counter.jacobian_double_count,
+    }
 
-    assert R_fast == R_ref
-    print("✅ Pippenger MSM matches reference MSM")
+    # --------------------------------------------------------
+    # Final correctness check
+    # --------------------------------------------------------
+
+    assert R_naive == R_ref == R_fast
+    print("\n✅ All MSM results match!")
+
+    # --------------------------------------------------------
+    # Comparison table
+    # --------------------------------------------------------
+
+    print_comparison_table()
 
 
 # ------------------------------------------------------------
