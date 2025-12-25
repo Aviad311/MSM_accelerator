@@ -6,6 +6,9 @@ from msm_pippenger import msm_pippenger
 from op_counter import reset_counters, print_counters
 import op_counter
 
+from extended_jacobian import extended_to_affine
+from msm_extended import msm_extended
+
 import random
 
 def generate_random_scalars(num_scalars, bits=32):
@@ -46,21 +49,31 @@ def generate_points_from_base(base_point, scalars):
 
 def print_comparison_table():
     print("\n================ Operation Count Comparison ================")
-    print(f"{'Model':<15} | {'Affine add':>10} | {'Jac add':>9} | {'Mixed add':>10} | {'Doubling':>9}")
-    print("-" * 65)
-    for name, c in [
+    # הוספתי עמודה בסוף: Total Muls
+    print(
+        f"{'Model':<15} | {'Aff add':>7} | {'Jac add':>7} | {'Mix add':>7} | {'Dbl':>7} | {'Ext Add':>7} | {'Ext Mix':>7} | {'Ext Dbl':>7} | {'Total Muls':>11}")
+    print("-" * 118)
+
+    models = [
         ("Naive", naive_counts),
         ("Reference", reference_counts),
         ("Pippenger", pippenger_counts),
-    ]:
+        ("Extended", extended_counts),
+    ]
+
+    for name, c in models:
         print(
             f"{name:<15} | "
-            f"{c['affine']:>10} | "
-            f"{c['jac']:>9} | "
-            f"{c['mixed']:>10} | "
-            f"{c['double']:>9}"
+            f"{c.get('affine', 0):>7} | "
+            f"{c.get('jac', 0):>7} | "
+            f"{c.get('mixed', 0):>7} | "
+            f"{c.get('double', 0):>7} | "
+            f"{c.get('ext_add', 0):>7} | "
+            f"{c.get('ext_mixed', 0):>7} | "
+            f"{c.get('ext_double', 0):>7} | "
+            f"{c.get('total_mul', 0):>11}"  # <--- שליפת הנתון החדש
         )
-    print("=" * 65)
+    print("=" * 118)
 
 
 # ------------------------------------------------------------
@@ -74,7 +87,7 @@ def main():
     # --------------------------------------------------------
 
     w = 8  # window size (small for debugging)
-    scalars = generate_random_scalars(num_scalars=200, bits=32)
+    scalars = generate_random_scalars(num_scalars=2000, bits=256)
 
     for s in scalars:
         print(hex(s))
@@ -103,6 +116,7 @@ def main():
         "jac": op_counter.jacobian_add_count,
         "mixed": op_counter.jacobian_mixed_add_count,
         "double": op_counter.jacobian_double_count,
+        "total_mul": op_counter.field_mul_count
     }
 
     # --------------------------------------------------------
@@ -123,6 +137,7 @@ def main():
         "jac": op_counter.jacobian_add_count,
         "mixed": op_counter.jacobian_mixed_add_count,
         "double": op_counter.jacobian_double_count,
+        "total_mul": op_counter.field_mul_count
     }
 
     # --------------------------------------------------------
@@ -143,13 +158,45 @@ def main():
         "jac": op_counter.jacobian_add_count,
         "mixed": op_counter.jacobian_mixed_add_count,
         "double": op_counter.jacobian_double_count,
+        "total_mul": op_counter.field_mul_count
+    }
+
+    # --------------------------------------------------------
+    # Extended MSM (XYZW)
+    # --------------------------------------------------------
+
+    print("\n[*] Running Extended MSM (XYZW)...")
+    reset_counters()
+
+    # הרצת ה-MSM
+    R_ext_extended = msm_extended(scalars, points, w=w)
+
+    # המרה חזרה לאפיני כדי שנוכל להשוות
+    R_ext = extended_to_affine(R_ext_extended)
+
+    assert is_on_curve(R_ext)
+    print("Extended MSM result:", R_ext)
+    print_counters("Extended MSM")
+
+    global extended_counts
+    extended_counts = {
+        "affine": op_counter.affine_add_count,  # אמור להיות 0
+        "jac": op_counter.jacobian_add_count,  # אמור להיות 0
+        "mixed": op_counter.jacobian_mixed_add_count,  # אמור להיות 0
+        "double": op_counter.jacobian_double_count,  # אמור להיות 0
+        # המונים החדשים:
+        "ext_add": op_counter.extended_add_count,
+        "ext_mixed": op_counter.extended_mixed_add_count,
+        "ext_double": op_counter.extended_double_count,
+        "total_mul": op_counter.field_mul_count
     }
 
     # --------------------------------------------------------
     # Final correctness check
     # --------------------------------------------------------
 
-    assert R_naive == R_ref == R_fast
+    # עדכון שורת הבדיקה
+    assert R_naive == R_ref == R_fast == R_ext
     print("\n✅ All MSM results match!")
 
     # --------------------------------------------------------

@@ -2,7 +2,7 @@
 #   Field arithmetic for secp256k1  (GF(p))
 #   Clean version for ASIC reference model
 # ==========================================================
-
+import op_counter
 p = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
 
 # ------------- Field operations -------------
@@ -14,6 +14,7 @@ def f_sub(a, b):
     return (a - b) % p
 
 def f_mul(a, b):
+    op_counter.field_mul_count += 1
     return (a * b) % p
 
 def f_inv(a):
