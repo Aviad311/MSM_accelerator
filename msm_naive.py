@@ -1,6 +1,5 @@
-from field import p, f_add, f_sub, f_mul, f_inv
+from field import p, f_add, f_sub, f_mul, f_inv, f_neg
 import op_counter
-
 
 
 # ------------------------------------------------------------
@@ -8,16 +7,24 @@ import op_counter
 # Curve: y^2 = x^3 + 7
 # ------------------------------------------------------------
 
+from field import p  # רק p
+
 def is_on_curve(P):
     """
-    Check if affine point P lies on the curve.
+    Check if affine point P lies on the curve (NO counter increment).
+    Curve: y^2 = x^3 + 7 over GF(p)
     P = (x, y) or None (point at infinity)
     """
     if P is None:
         return True
 
     x, y = P
-    return (y * y - (x * x * x + 7)) % p == 0
+
+    left = (y * y) % p
+    right = (x * x * x + 7) % p
+
+    return (left - right) % p == 0
+
 
 
 def affine_add(P, Q):
@@ -26,8 +33,8 @@ def affine_add(P, Q):
     P, Q are affine points or None (infinity).
     Returns affine point or None.
     """
-    global affine_add_count
     op_counter.affine_add_count += 1
+
     if P is None:
         return Q
     if Q is None:
@@ -36,23 +43,28 @@ def affine_add(P, Q):
     x1, y1 = P
     x2, y2 = Q
 
-    # P + (-P) = O
-    if x1 == x2 and (y1 + y2) % p == 0:
+    # P + (-P) = O  <=> x1==x2 and y1 + y2 == 0 (mod p)
+    if x1 == x2 and f_add(y1, y2) == 0:
         return None
 
     # Point doubling
     if P == Q:
-        num = (3 * x1 * x1) % p
-        den = f_inv((2 * y1) % p)
+        # m = (3*x1^2) / (2*y1)
+        num = f_mul(3, f_mul(x1, x1))
+        den = f_inv(f_mul(2, y1))
     else:
-        # General addition
-        num = (y2 - y1) % p
-        den = f_inv((x2 - x1) % p)
+        # m = (y2 - y1) / (x2 - x1)
+        num = f_sub(y2, y1)
+        den = f_inv(f_sub(x2, x1))
 
-    m = (num * den) % p
+    m = f_mul(num, den)
 
-    x3 = (m * m - x1 - x2) % p
-    y3 = (m * (x1 - x3) - y1) % p
+    # x3 = m^2 - x1 - x2
+    m2 = f_mul(m, m)
+    x3 = f_sub(f_sub(m2, x1), x2)
+
+    # y3 = m*(x1 - x3) - y1
+    y3 = f_sub(f_mul(m, f_sub(x1, x3)), y1)
 
     return (x3, y3)
 
