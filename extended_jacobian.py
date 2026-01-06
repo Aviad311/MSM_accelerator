@@ -1,38 +1,54 @@
-from field import f_add, f_sub, f_mul, f_inv, p
+from field import (
+    f_add, f_sub, f_mul, f_inv,
+    to_mont, from_mont,
+    p, ONE_M
+)
 import op_counter
 
 # Extended Jacobian representation (X, Y, Z, W) where W = Z^2
-EXT_INF = (1, 1, 0, 0)
+# All coordinates are in Montgomery domain.
+EXT_INF = (ONE_M, ONE_M, 0, 0)
+
+
+# ----------------------------------------------------------
+# Small constant multiplies in Montgomery domain
+# ----------------------------------------------------------
+def mul2(a): return f_add(a, a)
+def mul3(a): return f_add(a, mul2(a))
+def mul4(a): return mul2(mul2(a))
+def mul8(a): return mul2(mul4(a))
 
 
 def to_extended(P_aff):
     """
-    Convert an affine point (x, y) to extended Jacobian (X, Y, Z, W).
-    For affine: Z = 1, so W = Z^2 = 1.
+    Convert affine NORMAL point (x, y) to extended Jacobian (X, Y, Z, W),
+    returning Montgomery domain coordinates.
+      Z = 1 (Montgomery => ONE_M)
+      W = Z^2 = 1 (Montgomery => ONE_M)
     """
     if P_aff is None:
         return EXT_INF
-    return (P_aff[0] % p, P_aff[1] % p, 1, 1)
+    x, y = P_aff
+    return (to_mont(x), to_mont(y), ONE_M, ONE_M)
 
-
-from field import p  # רק p, בלי f_*
 
 def extended_to_affine(P):
     """
-    Convert extended Jacobian point (X, Y, Z, W) to affine (x, y)
-    WITHOUT counting field operations.
+    Convert extended Jacobian (Montgomery) -> affine NORMAL (x,y).
+    Uses Montgomery inversion and boundary conversion.
     """
     X, Y, Z, W = P
     if Z == 0:
         return None
 
-    Z_inv = pow(Z, p - 2, p)  # inversion without counting
-    Z_inv_sq = (Z_inv * Z_inv) % p
-    Z_inv_cu = (Z_inv_sq * Z_inv) % p
+    Z_inv = f_inv(Z)              # Montgomery
+    Z_inv_sq = f_mul(Z_inv, Z_inv)
+    Z_inv_cu = f_mul(Z_inv_sq, Z_inv)
 
-    x = (X * Z_inv_sq) % p
-    y = (Y * Z_inv_cu) % p
-    return (x, y)
+    xM = f_mul(X, Z_inv_sq)
+    yM = f_mul(Y, Z_inv_cu)
+
+    return (from_mont(xM), from_mont(yM))
 
 
 def extended_double(P):
@@ -45,16 +61,17 @@ def extended_double(P):
 
     # Same formulas as Jacobian doubling, plus W3 = Z3^2
     Y1_sq = f_mul(Y1, Y1)                 # Y1^2
-    S = f_mul(4, f_mul(X1, Y1_sq))        # 4*X1*Y1^2
-    X1_sq = f_mul(X1, X1)                 # X1^2
-    M = f_mul(3, X1_sq)                   # 3*X1^2 (a=0)
+    S = mul4(f_mul(X1, Y1_sq))            # 4*X1*Y1^2
 
-    X3 = f_sub(f_mul(M, M), f_mul(2, S))  # M^2 - 2S
+    X1_sq = f_mul(X1, X1)                 # X1^2
+    M = mul3(X1_sq)                       # 3*X1^2 (a=0)
+
+    X3 = f_sub(f_mul(M, M), mul2(S))      # M^2 - 2S
 
     Y1_sq_sq = f_mul(Y1_sq, Y1_sq)        # (Y1^2)^2
-    Y3 = f_sub(f_mul(M, f_sub(S, X3)), f_mul(8, Y1_sq_sq))
+    Y3 = f_sub(f_mul(M, f_sub(S, X3)), mul8(Y1_sq_sq))
 
-    Z3 = f_mul(2, f_mul(Y1, Z1))          # 2*Y1*Z1
+    Z3 = f_mul(mul2(Y1), Z1)              # 2*Y1*Z1
     W3 = f_mul(Z3, Z3)                    # Z3^2
 
     return (X3, Y3, Z3, W3)
@@ -62,7 +79,10 @@ def extended_double(P):
 
 def extended_mixed_add(P, Q_aff):
     """
-    Extended Jacobian P + affine Q (x2, y2), using W1 = Z1^2.
+    Extended Jacobian P + affine Q (x2, y2).
+    P is Montgomery extended.
+    Q_aff is affine NORMAL; we convert x2,y2 once to Montgomery.
+    Uses W1 = Z1^2.
     """
     op_counter.extended_mixed_add_count += 1
 
@@ -72,11 +92,14 @@ def extended_mixed_add(P, Q_aff):
     if Z1 == 0:
         return to_extended(Q_aff)
 
-    # U2 = x2 * Z1^2 = x2 * W1
-    U2 = f_mul(x2, W1)
+    X2 = to_mont(x2)
+    Y2 = to_mont(y2)
 
-    # S2 = y2 * Z1^3 = y2 * (Z1 * Z1^2) = y2 * (Z1 * W1)
-    S2 = f_mul(y2, f_mul(Z1, W1))
+    # U2 = x2 * Z1^2 = X2 * W1
+    U2 = f_mul(X2, W1)
+
+    # S2 = y2 * Z1^3 = Y2 * (Z1 * W1)
+    S2 = f_mul(Y2, f_mul(Z1, W1))
 
     if U2 == X1:
         if S2 != Y1:
@@ -84,18 +107,20 @@ def extended_mixed_add(P, Q_aff):
         return extended_double(P)
 
     H = f_sub(U2, X1)
-    R = f_sub(S2, Y1)
+    Rr = f_sub(S2, Y1)
 
     H_sq = f_mul(H, H)
     H_cu = f_mul(H_sq, H)
 
+    X1H2 = f_mul(X1, H_sq)
+
     X3 = f_sub(
-        f_sub(f_mul(R, R), H_cu),
-        f_mul(2, f_mul(X1, H_sq))
+        f_sub(f_mul(Rr, Rr), H_cu),
+        mul2(X1H2)
     )
 
     Y3 = f_sub(
-        f_mul(R, f_sub(f_mul(X1, H_sq), X3)),
+        f_mul(Rr, f_sub(X1H2, X3)),
         f_mul(Y1, H_cu)
     )
 
@@ -107,7 +132,7 @@ def extended_mixed_add(P, Q_aff):
 
 def extended_add(P, Q):
     """
-    Extended Jacobian addition P + Q (both in (X,Y,Z,W)).
+    Extended Jacobian addition P + Q (both in (X,Y,Z,W), Montgomery domain).
     """
     op_counter.extended_add_count += 1
 
@@ -135,18 +160,20 @@ def extended_add(P, Q):
         return extended_double(P)
 
     H = f_sub(U2, U1)
-    R = f_sub(S2, S1)
+    Rr = f_sub(S2, S1)
 
     H_sq = f_mul(H, H)
     H_cu = f_mul(H_sq, H)
 
+    U1H2 = f_mul(U1, H_sq)
+
     X3 = f_sub(
-        f_sub(f_mul(R, R), H_cu),
-        f_mul(2, f_mul(U1, H_sq))
+        f_sub(f_mul(Rr, Rr), H_cu),
+        mul2(U1H2)
     )
 
     Y3 = f_sub(
-        f_mul(R, f_sub(f_mul(U1, H_sq), X3)),
+        f_mul(Rr, f_sub(U1H2, X3)),
         f_mul(S1, H_cu)
     )
 

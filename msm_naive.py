@@ -1,38 +1,41 @@
-from field import p, f_add, f_sub, f_mul, f_inv, f_neg
+from field import p
 import op_counter
 
 
 # ------------------------------------------------------------
-# Affine point operations on secp256k1
-# Curve: y^2 = x^3 + 7
+# Golden / Validation affine ops (NORMAL domain)
+# Uses Python % freely (this file is NOT for RTL)
+# BUT: counts field ops in op_counter for fair comparison.
 # ------------------------------------------------------------
 
-from field import p  # רק p
+def n_add(a: int, b: int) -> int:
+    op_counter.field_add_count += 1
+    return (a + b) % p
+
+def n_sub(a: int, b: int) -> int:
+    op_counter.field_sub_count += 1
+    return (a - b) % p
+
+def n_mul(a: int, b: int) -> int:
+    op_counter.field_mul_count += 1
+    return (a * b) % p
+
+def n_inv(a: int) -> int:
+    # assumes a != 0
+    op_counter.field_inv_count += 1
+    return pow(a, p - 2, p)
+
 
 def is_on_curve(P):
-    """
-    Check if affine point P lies on the curve (NO counter increment).
-    Curve: y^2 = x^3 + 7 over GF(p)
-    P = (x, y) or None (point at infinity)
-    """
     if P is None:
         return True
-
     x, y = P
-
     left = (y * y) % p
     right = (x * x * x + 7) % p
-
     return (left - right) % p == 0
 
 
-
 def affine_add(P, Q):
-    """
-    Affine point addition.
-    P, Q are affine points or None (infinity).
-    Returns affine point or None.
-    """
     op_counter.affine_add_count += 1
 
     if P is None:
@@ -44,40 +47,32 @@ def affine_add(P, Q):
     x2, y2 = Q
 
     # P + (-P) = O  <=> x1==x2 and y1 + y2 == 0 (mod p)
-    if x1 == x2 and f_add(y1, y2) == 0:
+    if x1 == x2 and n_add(y1, y2) == 0:
         return None
 
     # Point doubling
     if P == Q:
         # m = (3*x1^2) / (2*y1)
-        num = f_mul(3, f_mul(x1, x1))
-        den = f_inv(f_mul(2, y1))
+        num = n_mul(3, n_mul(x1, x1))
+        den = n_inv(n_mul(2, y1))
     else:
         # m = (y2 - y1) / (x2 - x1)
-        num = f_sub(y2, y1)
-        den = f_inv(f_sub(x2, x1))
+        num = n_sub(y2, y1)
+        den = n_inv(n_sub(x2, x1))
 
-    m = f_mul(num, den)
+    m = n_mul(num, den)
 
     # x3 = m^2 - x1 - x2
-    m2 = f_mul(m, m)
-    x3 = f_sub(f_sub(m2, x1), x2)
+    m2 = n_mul(m, m)
+    x3 = n_sub(n_sub(m2, x1), x2)
 
     # y3 = m*(x1 - x3) - y1
-    y3 = f_sub(f_mul(m, f_sub(x1, x3)), y1)
+    y3 = n_sub(n_mul(m, n_sub(x1, x3)), y1)
 
     return (x3, y3)
 
 
-# ------------------------------------------------------------
-# Naive scalar multiplication (double-and-add)
-# ------------------------------------------------------------
-
 def scalar_mul_affine(k, P):
-    """
-    Compute k * P using naive double-and-add.
-    P is affine, result is affine.
-    """
     R = None
     Q = P
 
@@ -90,24 +85,9 @@ def scalar_mul_affine(k, P):
     return R
 
 
-# ------------------------------------------------------------
-# Naive MSM (Golden)
-# ------------------------------------------------------------
-
 def msm_naive(scalars, points):
-    """
-    Naive Multi-Scalar Multiplication:
-        sum_i scalars[i] * points[i]
-
-    - Fully affine
-    - Fully naive
-    - Very slow
-    - Golden reference
-    """
     R = None
-
     for s, P in zip(scalars, points):
         Pi = scalar_mul_affine(s, P)
         R = affine_add(R, Pi)
-
     return R

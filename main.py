@@ -1,10 +1,11 @@
 # ==========================================================
-#   MSM Benchmark - Main (full, safe version)
+#   MSM Benchmark - Main (Montgomery-safe + fair counters)
+#   NOTE: counts for Reference/Pippenger/Extended EXCLUDE the final
+#         Jacobian/Extended -> affine conversion inversion.
 # ==========================================================
 
 import random
 import op_counter
-
 from op_counter import reset_counters
 
 # MSM algorithms
@@ -13,7 +14,14 @@ from msm_reference import msm_reference
 from msm_pippenger import msm_pippenger
 from msm_extended import msm_extended
 
-# Affine conversions (NO counter versions)
+# Golden scalar mul (preferred) — if you have it
+try:
+    from msm_reference import scalar_mul_affine  # or from msm_naive import scalar_mul_affine
+    HAS_SCALAR_MUL = True
+except ImportError:
+    HAS_SCALAR_MUL = False
+
+# Affine conversions (return NORMAL affine)
 from jacobian import jacobian_to_affine
 from extended_jacobian import extended_to_affine
 
@@ -37,7 +45,7 @@ G = (Gx, Gy)
 # Parameters
 # ----------------------------------------------------------
 W = 8
-N_LIST = [10, 50, 100]
+N_LIST = [2, 16, 256,1024,2**12]
 
 
 # ----------------------------------------------------------
@@ -68,11 +76,20 @@ def generate_random_scalars(num_scalars, bits=256):
     return [random.randint(1, max_val) for _ in range(num_scalars)]
 
 
-def generate_points_from_base(base_point, scalars):
+def generate_points_from_base(base_point, scalars_for_points):
+    """
+    Build points[i] = scalars_for_points[i] * base_point  (affine normal).
+    This is ONLY for generating deterministic test points.
+    """
     points = []
-    for k in scalars:
-        P = msm_naive([k], [base_point])
-        points.append(P)
+    if HAS_SCALAR_MUL:
+        for k in scalars_for_points:
+            points.append(scalar_mul_affine(k, base_point))
+    else:
+        # Fallback: keep previous behavior (works if msm_naive([k],[G]) behaves like scalar mul)
+        for k in scalars_for_points:
+            P = msm_naive([k], [base_point])
+            points.append(P)
     return points
 
 
@@ -111,7 +128,6 @@ def plot_weighted_cost(N_list, series):
 # ----------------------------------------------------------
 def main():
 
-    # For graph
     series = {
         "Naive": [],
         "Reference": [],
@@ -123,15 +139,18 @@ def main():
         print(f"\n================ MSM test for N = {N} ================\n")
 
         scalars = generate_random_scalars(N, bits=256)
+
+        # deterministic points from base: 1*G,2*G,...,N*G
         points = generate_points_from_base(G, list(range(1, N + 1)))
 
         results_points = {}
         results_counts = {}
 
-        # ---------------- Naive ----------------
+        # ---------------- Naive (Golden affine) ----------------
         reset_counters()
         R_naive = msm_naive(scalars, points)
         results_points["Naive"] = R_naive
+
         naive_field = collect_field_counters()
         results_counts["Naive"] = {
             "aff": op_counter.affine_add_count,
@@ -144,13 +163,13 @@ def main():
             **naive_field,
         }
 
-        # ---------------- Reference ----------------
+        # ---------------- Reference (Jacobian Montgomery) ----------------
         reset_counters()
         R_ref_jac = msm_reference(scalars, points, w=W)
-        R_ref = jacobian_to_affine(R_ref_jac)
-        results_points["Reference"] = R_ref
+
+        # snapshot counters BEFORE conversion (exclude conversion inversion)
         ref_field = collect_field_counters()
-        results_counts["Reference"] = {
+        ref_counts = {
             "aff": 0,
             "jac": op_counter.jacobian_add_count,
             "mix": op_counter.jacobian_mixed_add_count,
@@ -161,13 +180,16 @@ def main():
             **ref_field,
         }
 
-        # ---------------- Pippenger ----------------
+        R_ref = jacobian_to_affine(R_ref_jac)
+        results_points["Reference"] = R_ref
+        results_counts["Reference"] = ref_counts
+
+        # ---------------- Pippenger (Jacobian Montgomery) ----------------
         reset_counters()
         R_pip_jac = msm_pippenger(scalars, points, w=W)
-        R_pip = jacobian_to_affine(R_pip_jac)
-        results_points["Pippenger"] = R_pip
+
         pip_field = collect_field_counters()
-        results_counts["Pippenger"] = {
+        pip_counts = {
             "aff": 0,
             "jac": op_counter.jacobian_add_count,
             "mix": op_counter.jacobian_mixed_add_count,
@@ -178,13 +200,16 @@ def main():
             **pip_field,
         }
 
-        # ---------------- Extended ----------------
+        R_pip = jacobian_to_affine(R_pip_jac)
+        results_points["Pippenger"] = R_pip
+        results_counts["Pippenger"] = pip_counts
+
+        # ---------------- Extended (Extended Montgomery) ----------------
         reset_counters()
         R_ext_ext = msm_extended(scalars, points, w=W)
-        R_ext = extended_to_affine(R_ext_ext)
-        results_points["Extended"] = R_ext
+
         ext_field = collect_field_counters()
-        results_counts["Extended"] = {
+        ext_counts = {
             "aff": 0,
             "jac": 0,
             "mix": 0,
@@ -195,9 +220,17 @@ def main():
             **ext_field,
         }
 
+        R_ext = extended_to_affine(R_ext_ext)
+        results_points["Extended"] = R_ext
+        results_counts["Extended"] = ext_counts
+
         # ---------------- Correctness ----------------
-        assert results_points["Naive"] == results_points["Reference"] \
-               == results_points["Pippenger"] == results_points["Extended"]
+        assert (
+            results_points["Naive"]
+            == results_points["Reference"]
+            == results_points["Pippenger"]
+            == results_points["Extended"]
+        )
 
         print("✔ All MSM results match")
         print("MSM result (affine):")
@@ -227,12 +260,8 @@ def main():
         for algo in series:
             series[algo].append(weighted_cost(results_counts[algo]))
 
-    # ---------------- Graph ----------------
     plot_weighted_cost(N_LIST, series)
 
 
-# ----------------------------------------------------------
-# Entry point
-# ----------------------------------------------------------
 if __name__ == "__main__":
     main()

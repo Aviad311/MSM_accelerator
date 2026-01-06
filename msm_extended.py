@@ -1,8 +1,9 @@
 from extended_jacobian import (
-    to_extended, extended_mixed_add, extended_add, extended_double, EXT_INF
+    to_extended,          # should convert affine NORMAL -> extended MONT
+    extended_add,
+    extended_double,
+    EXT_INF
 )
-
-
 
 def split_scalar_windows(s, w):
     windows = []
@@ -13,20 +14,32 @@ def split_scalar_windows(s, w):
     return windows
 
 
-def build_buckets_extended(window_values, points, w):
-    num_buckets = 1 << w
+def convert_points_to_extended(points_aff):
+    """
+    Convert all affine NORMAL points to Extended Jacobian (Montgomery domain) once.
+    """
+    return [to_extended(P) for P in points_aff]
 
+
+def build_buckets_extended(window_values, points_ext, w):
+    """
+    points_ext are already Extended (Montgomery domain).
+    buckets are Extended (Montgomery domain).
+    """
+    num_buckets = 1 << w
     buckets = [EXT_INF] * num_buckets
 
     for idx, b in enumerate(window_values):
         if b == 0:
             continue
-        P_aff = points[idx]
 
+        P_ext = points_ext[idx]
+
+        # check infinity by Z==0
         if buckets[b][2] == 0:
-            buckets[b] = to_extended(P_aff)
+            buckets[b] = P_ext
         else:
-            buckets[b] = extended_mixed_add(buckets[b], P_aff)
+            buckets[b] = extended_add(buckets[b], P_ext)
 
     return buckets
 
@@ -38,7 +51,6 @@ def reduce_buckets_extended(buckets):
     for i in range(len(buckets) - 1, 0, -1):
         if buckets[i][2] != 0:
             running = extended_add(running, buckets[i])
-
         result = extended_add(result, running)
 
     return result
@@ -50,9 +62,17 @@ def shift_window_extended(R, w):
     return R
 
 
-def msm_extended(scalars, points, w=16):
+def msm_extended(scalars, points_aff, w=16):
+    """
+    - points_aff are AFFINE NORMAL inputs (x,y)
+    - internal is Extended Jacobian in Montgomery domain
+    - returns Extended Jacobian Montgomery point
+    """
     window_lists = [split_scalar_windows(s, w) for s in scalars]
-    max_windows = max(len(ws) for ws in window_lists)
+    max_windows = max(len(ws) for ws in window_lists) if window_lists else 0
+
+    # Convert points ONCE
+    points_ext = convert_points_to_extended(points_aff)
 
     R = EXT_INF
 
@@ -62,12 +82,9 @@ def msm_extended(scalars, points, w=16):
 
         window_vals = []
         for ws in window_lists:
-            if window_idx < len(ws):
-                window_vals.append(ws[window_idx])
-            else:
-                window_vals.append(0)
+            window_vals.append(ws[window_idx] if window_idx < len(ws) else 0)
 
-        buckets = build_buckets_extended(window_vals, points, w)
+        buckets = build_buckets_extended(window_vals, points_ext, w)
         bucket_sum = reduce_buckets_extended(buckets)
         R = extended_add(R, bucket_sum)
 

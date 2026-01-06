@@ -1,38 +1,43 @@
-from field import INF
+from field import INF, to_mont, ONE_M
 from jacobian import (
     jacobian_add,
     jacobian_double,
-    jacobian_mixed_add
 )
 
 # ------------------------------------------------------------
 # Split scalar into windows (LSB first)
 # ------------------------------------------------------------
-
 def split_scalar_windows(s, w):
-    """
-    Split scalar s into windows of size w bits.
-    windows[0] = LSB window
-    """
     windows = []
     mask = (1 << w) - 1
-
     while s > 0:
         windows.append(s & mask)
         s >>= w
-
     return windows
 
 
 # ------------------------------------------------------------
-# Build buckets for a single window (same as reference)
+# Convert affine NORMAL points -> Jacobian MONT points (once)
 # ------------------------------------------------------------
+def affine_points_to_jacobian_mont(points_aff):
+    """
+    points_aff: list of (x,y) in NORMAL domain
+    returns: list of (X,Y,Z) in Montgomery Jacobian
+    """
+    pts = []
+    for (x, y) in points_aff:
+        pts.append((to_mont(x), to_mont(y), ONE_M))
+    return pts
 
-def build_buckets_pippenger(window_values, points, w):
+
+# ------------------------------------------------------------
+# Build buckets for a single window (Montgomery Jacobian points)
+# ------------------------------------------------------------
+def build_buckets_pippenger(window_values, points_jac_m, w):
     """
     bucket[i] = sum of points whose window value == i
-    Points are given in affine form.
-    Buckets are stored in Jacobian.
+    Points are already in Jacobian Montgomery form.
+    Buckets stored in Jacobian Montgomery.
     """
     num_buckets = 1 << w
     buckets = [INF] * num_buckets
@@ -41,12 +46,12 @@ def build_buckets_pippenger(window_values, points, w):
         if b == 0:
             continue
 
-        P_aff = points[idx]
+        Pj = points_jac_m[idx]
 
-        if buckets[b] == INF:
-            buckets[b] = (P_aff[0], P_aff[1], 1)
+        if buckets[b][2] == 0:     # INF check by Z==0 (safer than tuple compare)
+            buckets[b] = Pj
         else:
-            buckets[b] = jacobian_mixed_add(buckets[b], P_aff)
+            buckets[b] = jacobian_add(buckets[b], Pj)
 
     return buckets
 
@@ -54,20 +59,12 @@ def build_buckets_pippenger(window_values, points, w):
 # ------------------------------------------------------------
 # Reduce buckets using Pippenger running-sum method
 # ------------------------------------------------------------
-
 def reduce_buckets_pippenger(buckets):
-    """
-    Pippenger bucket reduction:
-        running = 0
-        for i = max_bucket .. 1:
-            running += bucket[i]
-            result  += running
-    """
     running = INF
     result = INF
 
     for i in range(len(buckets) - 1, 0, -1):
-        if buckets[i] != INF:
+        if buckets[i][2] != 0:
             running = jacobian_add(running, buckets[i])
         result = jacobian_add(result, running)
 
@@ -77,7 +74,6 @@ def reduce_buckets_pippenger(buckets):
 # ------------------------------------------------------------
 # Shift accumulated result by w bits (w doublings)
 # ------------------------------------------------------------
-
 def shift_window(R, w):
     for _ in range(w):
         R = jacobian_double(R)
@@ -85,21 +81,22 @@ def shift_window(R, w):
 
 
 # ------------------------------------------------------------
-# MSM Pippenger (Fast)
+# MSM Pippenger (Fast) - Montgomery-native output (Jacobian)
 # ------------------------------------------------------------
-
-def msm_pippenger(scalars, points, w=16):
+def msm_pippenger(scalars, points_aff, w=16):
     """
-    Fast Multi-Scalar Multiplication using Pippenger algorithm.
-
-    - Same windowing as reference
-    - Same bucket building
-    - Different (cheap) bucket reduction
+    Fast MSM using Pippenger.
+    - points_aff are NORMAL affine inputs (x,y)
+    - internal computations are Montgomery Jacobian
+    - returns Jacobian Montgomery point
     """
+
+    # Convert points ONCE (huge win)
+    points_jac_m = affine_points_to_jacobian_mont(points_aff)
 
     # Split scalars into windows
     window_lists = [split_scalar_windows(s, w) for s in scalars]
-    max_windows = max(len(ws) for ws in window_lists)
+    max_windows = max(len(ws) for ws in window_lists) if window_lists else 0
 
     R = INF
 
@@ -113,13 +110,10 @@ def msm_pippenger(scalars, points, w=16):
         # Collect window values for this window
         window_vals = []
         for ws in window_lists:
-            if window_idx < len(ws):
-                window_vals.append(ws[window_idx])
-            else:
-                window_vals.append(0)
+            window_vals.append(ws[window_idx] if window_idx < len(ws) else 0)
 
         # Build buckets
-        buckets = build_buckets_pippenger(window_vals, points, w)
+        buckets = build_buckets_pippenger(window_vals, points_jac_m, w)
 
         # Reduce buckets (Pippenger)
         bucket_sum = reduce_buckets_pippenger(buckets)
