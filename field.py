@@ -82,9 +82,6 @@ ZERO  = 0
 #  t can be up to ~512 bits here.
 # ----------------------------------------------------------
 def mont_red(t: int) -> int:
-    # Optional counter if you want to track reductions separately:
-    # op_counter.field_red_count += 1
-
     # m = (t * NPRIME) mod R
     m = (t * NPRIME) & MASK_256
 

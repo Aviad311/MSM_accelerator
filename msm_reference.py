@@ -2,6 +2,7 @@ from field import INF, to_mont, ONE_M
 from jacobian import (
     jacobian_add,
     jacobian_double,
+    jacobian_mixed_add_mont,
 )
 
 # ------------------------------------------------------------
@@ -17,20 +18,29 @@ def split_scalar_windows(s, w):
 
 
 # ------------------------------------------------------------
-# Convert affine NORMAL points -> Jacobian MONT points (once)
+# Convert affine NORMAL points -> AFFINE MONT points (once)
 # ------------------------------------------------------------
-def affine_points_to_jacobian_mont(points_aff):
-    return [(to_mont(x), to_mont(y), ONE_M) for (x, y) in points_aff]
+def affine_points_to_affine_mont(points_aff):
+    """
+    points_aff: list of (x,y) in NORMAL domain
+    returns: list of (X,Y) in Montgomery AFFINE
+    """
+    return [(to_mont(x), to_mont(y)) for (x, y) in points_aff]
 
 
 # ------------------------------------------------------------
-# Build buckets for a single window (Reference version)
+# Build buckets for a single window (Reference version) - MIXED
 # ------------------------------------------------------------
-def build_buckets_reference(window_values, points_jac_m, w):
+def build_buckets_reference(window_values, points_aff_mont, w):
     """
     bucket[i] = sum of points whose window value == i
-    Points are already Jacobian Montgomery.
-    Buckets stored in Jacobian Montgomery.
+
+    Points are AFFINE Montgomery (X2,Y2).
+    Buckets stored in Jacobian Montgomery (X,Y,Z).
+
+    Update rule:
+      - if bucket empty: bucket = (X2,Y2,1)
+      - else: bucket = mixed_add(bucket, (X2,Y2))
     """
     num_buckets = 1 << w
     buckets = [INF] * num_buckets
@@ -39,13 +49,12 @@ def build_buckets_reference(window_values, points_jac_m, w):
         if b == 0:
             continue
 
-        Pj = points_jac_m[idx]
+        X2, Y2 = points_aff_mont[idx]
 
-        # First contribution
         if buckets[b][2] == 0:
-            buckets[b] = Pj
+            buckets[b] = (X2, Y2, ONE_M)
         else:
-            buckets[b] = jacobian_add(buckets[b], Pj)
+            buckets[b] = jacobian_mixed_add_mont(buckets[b], (X2, Y2))
 
     return buckets
 
@@ -58,7 +67,8 @@ def reduce_buckets_reference(buckets):
     Reference reduction:
         sum_{i=1..} i * bucket[i]
     Implemented with repeated addition (slow but correct).
-    Montgomery Jacobian throughout.
+
+    Buckets are Jacobian Montgomery.
     """
     result = INF
 
@@ -93,14 +103,16 @@ def msm_reference(scalars, points_aff, w=16):
     - windowing + buckets
     - explicit weights (slow but correct)
     - points_aff are affine NORMAL inputs
+    - converts bases ONCE to affine MONT
+    - builds buckets with MIXED add to match HW-friendly flow
     - returns Jacobian Montgomery point
     """
 
     window_lists = [split_scalar_windows(s, w) for s in scalars]
     max_windows = max(len(ws) for ws in window_lists) if window_lists else 0
 
-    # Convert points ONCE
-    points_jac_m = affine_points_to_jacobian_mont(points_aff)
+    # Convert points ONCE to AFFINE Montgomery
+    points_aff_mont = affine_points_to_affine_mont(points_aff)
 
     R = INF
 
@@ -113,7 +125,7 @@ def msm_reference(scalars, points_aff, w=16):
         for ws in window_lists:
             window_vals.append(ws[window_idx] if window_idx < len(ws) else 0)
 
-        buckets = build_buckets_reference(window_vals, points_jac_m, w)
+        buckets = build_buckets_reference(window_vals, points_aff_mont, w)
         bucket_sum = reduce_buckets_reference(buckets)
         R = jacobian_add(R, bucket_sum)
 

@@ -1,26 +1,18 @@
 from field import (
-    f_add, f_sub, f_mul, f_inv, f_neg,
+    f_add, f_sub, f_mul, f_inv,
     to_mont, from_mont,
-    p, INF, ONE_M
+    INF, ONE_M
 )
 import op_counter
 
-
+#
+# # ----------------------------------------------------------
+# #  Small constant multiplies in Montgomery domain
 # ----------------------------------------------------------
-#  Small constant multiplies in Montgomery domain
-#  (avoid f_mul with non-Montgomery constants)
-# ----------------------------------------------------------
-def mul2(a):
-    return f_add(a, a)
-
-def mul3(a):
-    return f_add(a, mul2(a))
-
-def mul4(a):
-    return mul2(mul2(a))
-
-def mul8(a):
-    return mul2(mul4(a))
+def mul2(a): return f_add(a, a)
+def mul3(a): return f_add(a, mul2(a))
+def mul4(a): return mul2(mul2(a))
+def mul8(a): return mul2(mul4(a))
 
 
 # ----------------------------------------------------------
@@ -34,12 +26,12 @@ def jacobian_double(P):
         return INF
 
     # S = 4 * X1 * Y1^2
-    Y1_sq = f_mul(Y1, Y1)            # Y1^2
-    S = mul4(f_mul(X1, Y1_sq))       # 4*X1*Y1^2
+    Y1_sq = f_mul(Y1, Y1)
+    S = mul4(f_mul(X1, Y1_sq))
 
     # M = 3 * X1^2
-    X1_sq = f_mul(X1, X1)            # X1^2
-    M = mul3(X1_sq)                  # 3*X1^2
+    X1_sq = f_mul(X1, X1)
+    M = mul3(X1_sq)
 
     # X3 = M^2 - 2*S
     X3 = f_sub(f_mul(M, M), mul2(S))
@@ -57,36 +49,35 @@ def jacobian_double(P):
     return (X3, Y3, Z3)
 
 
+
+
 # ----------------------------------------------------------
-#  Mixed Addition (Jacobian P + Affine Q), Z2 = 1
-#
-#  Montgomery-native notes:
-#  - P is Montgomery Jacobian (X1,Y1,Z1 are Montgomery)
-#  - Q is provided as AFFINE NORMAL (x2,y2) by default,
-#    and we convert it ONCE here to Montgomery.
-#
-#  For ASIC: better to store bases already in Montgomery,
-#  then remove these to_mont calls.
+#  Mixed Addition (Jacobian P + Affine(Q in MONT)), Z2=1
+#  THIS is the fast one for bucket building.
 # ----------------------------------------------------------
-def jacobian_mixed_add(P, Q_aff_normal):
+def jacobian_mixed_add_mont(P, Q_aff_mont):
+    """
+    P: (X1,Y1,Z1) Jacobian Montgomery
+    Q_aff_mont: (X2,Y2) affine Montgomery  (implicitly Z2=ONE_M)
+    returns: Jacobian Montgomery
+    """
     op_counter.jacobian_mixed_add_count += 1
+
     X1, Y1, Z1 = P
-    x2, y2 = Q_aff_normal  # normal affine
+    X2, Y2 = Q_aff_mont
 
-    # Convert affine inputs once
-    X2 = to_mont(x2)
-    Y2 = to_mont(y2)
-    Z2 = ONE_M  # 1 in Montgomery
-
+    # If P is INF, result is Q (as Jacobian with Z=1)
     if Z1 == 0:
         return (X2, Y2, ONE_M)
 
-    Z1_sq = f_mul(Z1, Z1)         # Z1^2
-    U2 = f_mul(X2, Z1_sq)         # x2 * Z1^2
+    # Z1^2, Z1^3
+    Z1_sq = f_mul(Z1, Z1)
+    U2 = f_mul(X2, Z1_sq)
 
-    Z1_cu = f_mul(Z1_sq, Z1)      # Z1^3
-    S2 = f_mul(Y2, Z1_cu)         # y2 * Z1^3
+    Z1_cu = f_mul(Z1_sq, Z1)
+    S2 = f_mul(Y2, Z1_cu)
 
+    # Special cases: same X
     if U2 == X1:
         if S2 != Y1:
             return INF
@@ -178,7 +169,6 @@ def jacobian_to_affine(P):
     if Z == 0:
         return None
 
-    # Zinv in Montgomery domain
     Zinv = f_inv(Z)
     Zinv2 = f_mul(Zinv, Zinv)
     Zinv3 = f_mul(Zinv2, Zinv)
@@ -186,5 +176,4 @@ def jacobian_to_affine(P):
     xM = f_mul(X, Zinv2)
     yM = f_mul(Y, Zinv3)
 
-    # Convert back to normal domain for output
     return (from_mont(xM), from_mont(yM))

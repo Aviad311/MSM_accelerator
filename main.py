@@ -1,7 +1,7 @@
 # ==========================================================
 #   MSM Benchmark - Main (Montgomery-safe + fair counters)
-#   NOTE: counts for Reference/Pippenger/Extended EXCLUDE the final
-#         Jacobian/Extended -> affine conversion inversion.
+#   NOTE: counts for Reference/Pippenger/Extended/Pippenger_HW
+#         EXCLUDE the final Jacobian/Extended -> affine conversion inversion.
 # ==========================================================
 
 import random
@@ -13,6 +13,9 @@ from msm_naive import msm_naive
 from msm_reference import msm_reference
 from msm_pippenger import msm_pippenger
 from msm_extended import msm_extended
+
+# NEW: HW-like Pippenger (tiled + ping-pong)
+from msm_pippenger_hw import msm_pippenger_tiled_pingpong_bundle
 
 # Golden scalar mul (preferred) — if you have it
 try:
@@ -45,7 +48,11 @@ G = (Gx, Gy)
 # Parameters
 # ----------------------------------------------------------
 W = 8
-N_LIST = [2, 16, 256,1024,2**12]
+N_LIST = [2, 16, 256, 2**10,2**12]
+
+# HW-like knobs (for msm_pippenger_tiled_pingpong_bundle)
+HW_TILE_SIZE = 4       # how many windows per PASS (e.g., 2 or 4)
+HW_BATCH_SIZE = 1024   # DMA batch size
 
 
 # ----------------------------------------------------------
@@ -132,6 +139,7 @@ def main():
         "Naive": [],
         "Reference": [],
         "Pippenger": [],
+        "Pippenger_HW": [],
         "Extended": [],
     }
 
@@ -204,6 +212,33 @@ def main():
         results_points["Pippenger"] = R_pip
         results_counts["Pippenger"] = pip_counts
 
+        # ---------------- Pippenger HW-like (Tiled + Ping-Pong) ----------------
+        reset_counters()
+        R_hw_jac = msm_pippenger_tiled_pingpong_bundle(
+            scalars,
+            points,
+            w=W,
+            tile_size=HW_TILE_SIZE,
+            batch_size=HW_BATCH_SIZE,
+            scalar_bits=256,
+        )
+
+        hw_field = collect_field_counters()
+        hw_counts = {
+            "aff": 0,
+            "jac": op_counter.jacobian_add_count,
+            "mix": op_counter.jacobian_mixed_add_count,
+            "dbl": op_counter.jacobian_double_count,
+            "ext_add": 0,
+            "ext_mix": 0,
+            "ext_dbl": 0,
+            **hw_field,
+        }
+
+        R_hw = jacobian_to_affine(R_hw_jac)
+        results_points["Pippenger_HW"] = R_hw
+        results_counts["Pippenger_HW"] = hw_counts
+
         # ---------------- Extended (Extended Montgomery) ----------------
         reset_counters()
         R_ext_ext = msm_extended(scalars, points, w=W)
@@ -229,6 +264,7 @@ def main():
             results_points["Naive"]
             == results_points["Reference"]
             == results_points["Pippenger"]
+            == results_points["Pippenger_HW"]
             == results_points["Extended"]
         )
 
@@ -239,22 +275,22 @@ def main():
         # ---------------- Table ----------------
         print("\n================ Operation Count Comparison ================")
         print(
-            "Model       | Aff add | Jac add | Mix add |  Dbl | "
+            "Model         | Aff add | Jac add | Mix add |  Dbl | "
             "Ext Add | Ext Mix | Ext Dbl |  F_Mul |  F_Add |  F_Sub |  F_Inv | WeightedCost"
         )
-        print("-" * 150)
+        print("-" * 152)
 
         for name, c in results_counts.items():
             wc = weighted_cost(c)
             print(
-                f"{name:<11} | "
+                f"{name:<13} | "
                 f"{c['aff']:>7} | {c['jac']:>7} | {c['mix']:>7} | {c['dbl']:>5} | "
                 f"{c['ext_add']:>7} | {c['ext_mix']:>7} | {c['ext_dbl']:>7} | "
                 f"{c['mul']:>7} | {c['add']:>7} | {c['sub']:>7} | {c['inv']:>7} | "
                 f"{wc:>11.0f}"
             )
 
-        print("=" * 150)
+        print("=" * 152)
 
         # ---------------- Collect for graph ----------------
         for algo in series:

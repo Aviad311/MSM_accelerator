@@ -1,5 +1,5 @@
 from field import INF, to_mont, ONE_M
-from jacobian import jacobian_add, jacobian_double
+from jacobian import jacobian_add, jacobian_double, jacobian_mixed_add_mont
 
 def window_value(k, window_idx, w):
     mask = (1 << w) - 1
@@ -19,14 +19,14 @@ def reduce_buckets_pippenger(buckets):
         result = jacobian_add(result, running)
     return result
 
-def affine_points_to_jacobian_mont(points_aff):
+def affine_points_to_affine_mont(points_aff):
     """
     points_aff: list of (x,y) in NORMAL domain
-    returns: list of (X,Y,Z) in Montgomery Jacobian
+    returns: list of (X,Y) in Montgomery AFFINE
     """
     pts = []
     for (x, y) in points_aff:
-        pts.append((to_mont(x), to_mont(y), ONE_M))
+        pts.append((to_mont(x), to_mont(y)))
     return pts
 
 def msm_pippenger_tiled_pingpong_bundle(
@@ -45,9 +45,9 @@ def msm_pippenger_tiled_pingpong_bundle(
     - "Bundle" overlap: build next tile completely, then reduce previous tile
       (keeps correctness and models the memory architecture; not cycle-accurate).
 
-    IMPORTANT FIX:
-    - Convert points to Montgomery Jacobian ONCE (like your original Pippenger),
-      so we don't add extra field ops due to repeated to_mont calls.
+    IMPORTANT:
+    - Convert points to Montgomery AFFINE ONCE.
+    - Build buckets using MIXED ADD (Jacobian bucket + affine point) to save field muls.
 
     Returns: Jacobian Montgomery point.
     """
@@ -55,8 +55,8 @@ def msm_pippenger_tiled_pingpong_bundle(
     if N == 0:
         return INF
 
-    # Convert points ONCE (avoid repeated to_mont per tile/batch)
-    points_jac_m = affine_points_to_jacobian_mont(points_aff)
+    # Convert points ONCE to AFFINE Montgomery (X,Y)
+    points_aff_m = affine_points_to_affine_mont(points_aff)
 
     num_windows = (scalar_bits + w - 1) // w
     num_buckets = 1 << w
@@ -87,18 +87,21 @@ def msm_pippenger_tiled_pingpong_bundle(
             # "DMA batch"
             for i in range(base, end):
                 k = scalars[i]
-                Pj = points_jac_m[i]   # <-- use pre-converted point (no to_mont here)
+                X2, Y2 = points_aff_m[i]   # <-- pre-converted affine mont (no to_mont here)
 
                 # Update buckets for all windows in this tile
                 for win in active_windows:
                     b = window_value(k, win, w)
                     if b == 0:
                         continue
+
                     Bi = buf[win][b]
                     if Bi[2] == 0:
-                        buf[win][b] = Pj
+                        # First point in bucket: store as Jacobian with Z=1
+                        buf[win][b] = (X2, Y2, ONE_M)
                     else:
-                        buf[win][b] = jacobian_add(Bi, Pj)
+                        # Mixed add: Jacobian bucket + affine base point
+                        buf[win][b] = jacobian_mixed_add_mont(Bi, (X2, Y2))
 
     # Accumulate results in strict MSB->LSB order (this preserves correctness)
     R = INF

@@ -32,6 +32,14 @@ def to_extended(P_aff):
     return (to_mont(x), to_mont(y), ONE_M, ONE_M)
 
 
+def extended_from_affine_mont(X2, Y2):
+    """
+    Build Extended Jacobian point from affine MONT (X2,Y2) with Z=1, W=1.
+    This is the "no-conversion" version for MSM/HW flow.
+    """
+    return (X2, Y2, ONE_M, ONE_M)
+
+
 def extended_to_affine(P):
     """
     Convert extended Jacobian (Montgomery) -> affine NORMAL (x,y).
@@ -77,28 +85,27 @@ def extended_double(P):
     return (X3, Y3, Z3, W3)
 
 
-def extended_mixed_add(P, Q_aff):
+def extended_mixed_add_mont(P, Q_aff_mont):
     """
-    Extended Jacobian P + affine Q (x2, y2).
-    P is Montgomery extended.
-    Q_aff is affine NORMAL; we convert x2,y2 once to Montgomery.
-    Uses W1 = Z1^2.
+    Extended Jacobian P + affine Q, where Q is already in MONT domain.
+
+    P: (X1,Y1,Z1,W1)  Extended Montgomery, with W1 = Z1^2
+    Q_aff_mont: (X2,Y2) affine Montgomery
+
+    Returns: (X3,Y3,Z3,W3) Extended Montgomery
     """
     op_counter.extended_mixed_add_count += 1
 
     X1, Y1, Z1, W1 = P
-    x2, y2 = Q_aff
+    X2, Y2 = Q_aff_mont
 
     if Z1 == 0:
-        return to_extended(Q_aff)
+        return extended_from_affine_mont(X2, Y2)
 
-    X2 = to_mont(x2)
-    Y2 = to_mont(y2)
-
-    # U2 = x2 * Z1^2 = X2 * W1
+    # U2 = X2 * Z1^2 = X2 * W1
     U2 = f_mul(X2, W1)
 
-    # S2 = y2 * Z1^3 = Y2 * (Z1 * W1)
+    # S2 = Y2 * Z1^3 = Y2 * (Z1 * W1)
     S2 = f_mul(Y2, f_mul(Z1, W1))
 
     if U2 == X1:
@@ -128,6 +135,25 @@ def extended_mixed_add(P, Q_aff):
     W3 = f_mul(Z3, Z3)
 
     return (X3, Y3, Z3, W3)
+
+
+def extended_mixed_add(P, Q_aff):
+    """
+    Extended Jacobian P + affine Q (x2, y2).
+    P is Montgomery extended.
+    Q_aff is affine NORMAL; converted once here to Montgomery.
+
+    This is a convenience wrapper.
+    For MSM/HW flow, prefer extended_mixed_add_mont with pre-converted points.
+    """
+    X1, Y1, Z1, W1 = P
+    if Z1 == 0:
+        return to_extended(Q_aff)
+
+    x2, y2 = Q_aff
+    X2 = to_mont(x2)
+    Y2 = to_mont(y2)
+    return extended_mixed_add_mont(P, (X2, Y2))
 
 
 def extended_add(P, Q):
