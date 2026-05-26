@@ -1,4 +1,4 @@
-```systemverilog
+
 // =============================================================================
 // ASIC-style Reference Model: Field Arithmetic for secp256k1 (GF(p))
 // Montgomery-native Datapath
@@ -12,7 +12,7 @@ package field_pkg;
 
     // Montgomery Parameters
     // NPRIME = -p^{-1} mod 2^256
-    localparam [255:0] NPRIME = 256'hD838091DD22535310895C0DC1180B1E428C00684F04D7C07B483C6F8F5539591;
+    localparam [255:0] NPRIME = 256'hC9BD1905155383999C46C2C295F2B761BCB223FEDC24A059D838091DD2253531;
 
     // R2 = R^2 mod p, where R = 2^256
     // Calculated as: (2^256)^2 mod p = (2^32 + 977)^2 = 2^64 + 1954*2^32 + 954529
@@ -255,4 +255,4 @@ module field_inv (
     end
 
 endmodule
-```
+
