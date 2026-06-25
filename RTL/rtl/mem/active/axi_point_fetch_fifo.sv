@@ -2,7 +2,8 @@
 
 module axi_point_fetch_fifo #(
     parameter int FIFO_DEPTH      = 64,  // Must be a power of 2 (e.g., 16, 32, 64, 128)
-    parameter int MAX_BURST_BEATS = 16   // Maximum AXI4 burst length (1 to 256)
+    parameter int MAX_BURST_BEATS = 16,   // Maximum AXI4 burst length (1 to 256)
+    parameter int DATA_W          = 512
 )(
     input  logic         clk,
     input  logic         rst_n,
@@ -23,7 +24,7 @@ module axi_point_fetch_fifo #(
     input  logic         m_axi_arready,
 
     // --- AXI4 Read Data Channel (R) ---
-    input  logic [511:0] m_axi_rdata,
+    input  logic [DATA_W-1:0] m_axi_rdata,
     input  logic [1:0]   m_axi_rresp,
     input  logic         m_axi_rlast,
     input  logic         m_axi_rvalid,
@@ -31,7 +32,7 @@ module axi_point_fetch_fifo #(
 
     // --- Downstream FIFO Interface ---
     input  logic         pop,
-    output logic [511:0] dout,
+    output logic [DATA_W-1:0] dout,
     output logic         empty,
     output logic         full,
     output logic         almost_full
@@ -208,7 +209,7 @@ module axi_point_fetch_fifo #(
     end
 
     // --- RAM Array ---
-    logic [511:0] sram_array [0:FIFO_DEPTH-1];
+    logic [DATA_W-1:0] sram_array [0:FIFO_DEPTH-1];
 
     always_ff @(posedge clk) begin
         if (fifo_push) begin
