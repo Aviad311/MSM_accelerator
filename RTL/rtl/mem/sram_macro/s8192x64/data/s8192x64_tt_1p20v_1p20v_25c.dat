@@ -1,0 +1,221 @@
+# datatable_memcomp Version: 4.0.5-beta17
+# common_memcomp Version: 4.0.5-EAC
+# lang compiler Version: 4.1.6-EAC2 Oct 30 2012 16:32:37 
+# High Density Single Port SRAM HVT RVT Compiler 
+#  TSMC CLN65LP Process 0.525um^2 Bit Cell 256 Rows Per Bank, RAM-SP Datatable, Version r0p0
+# Copyright 1993-2026 ARM Limited. All Rights Reserved
+# Instance Name=s8192x64
+# Process=CLN65LP 
+# Words=8192 
+# Bits=64 
+# Mux=16 
+# Write Mask=off 
+# Extra Margin Adjustment=on 
+# Redundancy=off 
+# Soft Error Repair=none 
+# BIST Muxes=on 
+# Output Drive=6 
+# Power Routing Type=otc 
+# Top Metal=m5-m9 
+# Frequency=250 MHz 
+# Power Gating=off 
+# Retention=on 
+# Back Biasing=off 
+# Read Disturb Test=off 
+# Pipeline=off 
+# Write-thru=off 
+# Units used in Datatable
+# Area          : uM^2
+# Voltage       : volts
+# Temperature   : Degree Celsius
+# Current       : mA
+# Time          : ns
+name      	tt_1p20v_1p20v_25c	
+S		N
+geomx     	1209.8300 
+geomy     	315.3650  
+volt      	1.2000    
+temp      	25.0000   
+# Cycle time specific information. 
+tcyc_ema0 	1.6420    
+tcyc_ema1 	1.7190    
+tcyc_ema2 	1.7793    
+tcyc_ema3 	2.0111    
+tcyc_ema4 	2.1364    
+tcyc_ema5 	2.2214    
+tcyc_ema6 	2.3245    
+tcyc_ema7 	2.4519    
+# Access time specific information. 
+taccq_rd0 	1.3021    
+taccq_rd1 	1.3792    
+taccq_rd2 	1.4395    
+taccq_rd3 	1.6713    
+taccq_rd4 	1.7966    
+taccq_rd5 	1.8816    
+taccq_rd6 	1.9847    
+taccq_rd7 	2.1121    
+taccq_scan	0.7483    
+# Scan delay time specific information. 
+tclkso_rd0	1.4601    
+tclkso_rd1	1.5372    
+tclkso_rd2	1.5975    
+tclkso_rd3	1.8292    
+tclkso_rd4	1.9546    
+tclkso_rd5	2.0395    
+tclkso_rd6	2.1427    
+tclkso_rd7	2.2700    
+tclkso_scan	0.8949    
+# Standard memory feature setuphold specific information. 
+tas       	0.3047    
+tah       	0.2074    
+tcens     	0.3535    
+tcenh     	0.1805    
+twens     	0.2122    
+twenh     	0.1789    
+tds       	0.1123    
+tdh       	0.3053    
+# Standard memory input capacitance information.  
+icap_a    	0.0126    
+icap_clk  	0.0160    
+icap_cen  	0.0088    
+icap_d    	0.0074    
+icap_wen  	0.0092    
+kload_q   	0.5024    
+# Clock Phase specific information. 
+tckh      	0.2228    
+tckl      	0.2122    
+tckr      	0.6120    
+# Average Current specific information 
+icc_c_avg0	0.1966    
+icc_p_avg0	7.9510    
+icc_c_avg1	0.1966    
+icc_p_avg1	8.0029    
+icc_c_avg2	0.1966    
+icc_p_avg2	8.0548    
+icc_c_avg3	0.1966    
+icc_p_avg3	8.1067    
+icc_c_avg4	0.1966    
+icc_p_avg4	8.1586    
+icc_c_avg5	0.1966    
+icc_p_avg5	8.2105    
+icc_c_avg6	0.1966    
+icc_p_avg6	8.2623    
+icc_c_avg7	0.1966    
+icc_p_avg7	8.3142    
+# Read Current specific information 
+icc_c_rd0 	0.1872    
+icc_p_rd0 	7.9624    
+icc_c_rd1 	0.1872    
+icc_p_rd1 	8.0130    
+icc_c_rd2 	0.1872    
+icc_p_rd2 	8.0636    
+icc_c_rd3 	0.1872    
+icc_p_rd3 	8.1143    
+icc_c_rd4 	0.1872    
+icc_p_rd4 	8.1649    
+icc_c_rd5 	0.1872    
+icc_p_rd5 	8.2155    
+icc_c_rd6 	0.1872    
+icc_p_rd6 	8.2661    
+icc_c_rd7 	0.1872    
+icc_p_rd7 	8.3167    
+# Write Current specific information 
+icc_c_wr0 	0.2060    
+icc_p_wr0 	7.9397    
+icc_c_wr1 	0.2060    
+icc_p_wr1 	7.9928    
+icc_c_wr2 	0.2060    
+icc_p_wr2 	8.0460    
+icc_c_wr3 	0.2060    
+icc_p_wr3 	8.0991    
+icc_c_wr4 	0.2060    
+icc_p_wr4 	8.1523    
+icc_c_wr5 	0.2060    
+icc_p_wr5 	8.2054    
+icc_c_wr6 	0.2060    
+icc_p_wr6 	8.2586    
+icc_c_wr7 	0.2060    
+icc_p_wr7 	8.3117    
+# Peak current specific information
+icc_c_peak	5.9008    
+icc_p_peak	372.9838  
+# Deselect current specific information
+icc_c_desel	0.0000e+00
+icc_p_desel	3.5595    
+# Leakage Current specific information 
+icc_c_standby	5.4479e-03
+icc_p_standby	3.7654e-03
+icc_c_selective_precharge	5.4467e-03
+icc_p_selective_precharge	1.5721e-03
+icc_c_standby_ret1n	5.5211e-03
+icc_p_standby_ret1n	1.8078e-04
+# Clock noise limit specific information 
+pwn_clk   	0.1114    
+vn_clk    	0.2400    
+# Supply noise limit specific information 
+vn_pwr    	0.1200    
+vn_gnd    	0.1200    
+# EMA feature specific information.
+icap_ema  	0.0089    
+temas     	1.7793    
+temah     	2.4519    
+icap_emaw 	0.0082    
+temaws    	1.7793    
+temawh    	2.4519    
+# BIST MUX feature input capacitance specific information. 
+icap_ten  	0.0093    
+icap_tcen 	0.0089    
+icap_ta   	0.0073    
+icap_twen 	0.0099    
+icap_td   	0.0057    
+kload_weny	1.6339    
+kload_ay  	1.6537    
+kload_ceny	1.6286    
+# BIST MUX feature delay specific information. 
+ttenceny  	0.4952    
+tcenceny  	0.2340    
+ttcenceny 	0.2372    
+tdftrambypceny	0.2433    
+ttenweny  	0.4942    
+twenweny  	0.2327    
+ttwenweny 	0.2371    
+tdftrambypweny	0.2431    
+ttenay    	0.4514    
+taay      	0.2169    
+ttaay     	0.2732    
+tdftrambypay	0.2463    
+# BMUX feature setuphold specific information. 
+ttens     	1.1853    
+ttenh     	0.3737    
+ttcens    	0.3535    
+ttcenh    	0.1805    
+ttas      	0.3513    
+ttah      	0.1512    
+ttwens    	0.1881    
+ttwenh    	0.1789    
+ttds      	0.1123    
+ttdh      	0.3053    
+# scan feature input capacitance specific information.
+icap_dftrambyp	0.0107    
+icap_si   	0.0047    
+icap_se   	0.0085    
+# Scan feature specific information. 
+tdftrambyps	0.3535    
+tdftrambyph	0.1805    
+tsis      	0.1348    
+tsih      	0.3664    
+tses      	1.4223    
+tseh      	0.3737    
+kload_so  	1.8984    
+# MTCMOS feature specific information.
+icap_ret1n	0.0081    
+# MTCMOS feature setuphold specific information.  
+tret1ns   	2.0536    
+tret1nh   	1.7793    
+# MTCMOS feature specific information : Protocol sequence timing checks.  
+tret1n_cenh	1.7793    
+tcen_ret1nh	1.7793    
+tret1n_dftrambyph	1.7793    
+tdftrambyp_ret1nh	1.7793    
+tret1n_tcenh	1.7793    
+ttcen_ret1nh	1.7793    

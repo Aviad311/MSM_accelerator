@@ -1,0 +1,164 @@
+# datatable_memcomp Version: 4.0.5-beta15
+# common_memcomp Version: 4.0.5-EAC
+# lang compiler Version: 4.0.0-beta23.4 Jun 21 2011 12:31:24 
+# High Speed Single Port SRAM HVT RVT Compiler 
+#  TSMC cln65lp 65nm Process, SRAM-SP Datatable, Version r1p0
+# 0.620um^2 Bit Cell
+# Copyright 1993-2026 ARM Limited. All Rights Reserved
+# Instance Name=s8192x16
+# Process=CLN65LP 
+# Words=8192 
+# Bits=16 
+# Mux=16 
+# Write Mask=off 
+# Extra Margin Adjustment=on 
+# Redundancy=off 
+# BIST Muxes=off 
+# Output Drive=6 
+# Power Routing Type=otc 
+# Top Metal=m5-m10 
+# Frequency=100 MHz 
+# Power Gating=off 
+# Retention=on 
+# Back Biasing=off 
+# Read Disturb Test=off 
+# Pipeline=off 
+# Write-thru=off 
+# Units used in Datatable
+# Area          : uM^2
+# Voltage       : volts
+# Temprature    : Degree Celsius
+# Current       : mA
+# Time          : ns
+name      	tt_1p20v_1p20v_25c	
+S		N
+geomx     	366.1700  
+geomy     	294.7100  
+volt      	1.2000    
+temp      	25.0000   
+# Cycle time specific information. 
+tcyc_ema0 	1.2980    
+tcyc_ema1 	1.3691    
+tcyc_ema2 	1.3984    
+tcyc_ema3 	1.4876    
+tcyc_ema4 	1.6440    
+tcyc_ema5 	1.7270    
+tcyc_ema6 	1.8086    
+tcyc_ema7 	1.8928    
+# Access time specific information. 
+taccq_rd0 	0.9024    
+taccq_rd1 	0.9735    
+taccq_rd2 	1.0028    
+taccq_rd3 	1.0921    
+taccq_rd4 	1.2484    
+taccq_rd5 	1.3315    
+taccq_rd6 	1.4131    
+taccq_rd7 	1.4973    
+# Standard memory feature setuphold specific information. 
+tas       	0.2379    
+tah       	0.2085    
+tcens     	0.4046    
+tcenh     	0.2056    
+twens     	0.1111    
+twenh     	0.2070    
+tds       	0.1752    
+tdh       	0.3410    
+# Standard memory input capacitance information.  
+icap_a    	0.0414    
+icap_clk  	0.0442    
+icap_cen  	0.0350    
+icap_d    	0.0454    
+icap_wen  	0.0373    
+kload_q   	1.1801    
+# Clock Phase specific information. 
+tckh      	0.2326    
+tckl      	0.2187    
+tckr      	0.6120    
+# Average Current specific information 
+icc_c_avg0	3.0653e-02
+icc_p_avg0	0.8864    
+icc_c_avg1	3.0653e-02
+icc_p_avg1	0.9183    
+icc_c_avg2	3.0653e-02
+icc_p_avg2	0.9254    
+icc_c_avg3	3.0653e-02
+icc_p_avg3	0.9494    
+icc_c_avg4	3.0653e-02
+icc_p_avg4	1.0305    
+icc_c_avg5	3.0653e-02
+icc_p_avg5	1.0552    
+icc_c_avg6	3.0653e-02
+icc_p_avg6	1.0807    
+icc_c_avg7	3.0653e-02
+icc_p_avg7	1.1070    
+# Read Current specific information 
+icc_c_rd0 	2.9193e-02
+icc_p_rd0 	0.8868    
+icc_c_rd1 	2.9193e-02
+icc_p_rd1 	0.9179    
+icc_c_rd2 	2.9193e-02
+icc_p_rd2 	0.9248    
+icc_c_rd3 	2.9193e-02
+icc_p_rd3 	0.9482    
+icc_c_rd4 	2.9193e-02
+icc_p_rd4 	1.0273    
+icc_c_rd5 	2.9193e-02
+icc_p_rd5 	1.0515    
+icc_c_rd6 	2.9193e-02
+icc_p_rd6 	1.0764    
+icc_c_rd7 	2.9193e-02
+icc_p_rd7 	1.1020    
+# Write Current specific information 
+icc_c_wr0 	3.2112e-02
+icc_p_wr0 	0.8861    
+icc_c_wr1 	3.2112e-02
+icc_p_wr1 	0.9187    
+icc_c_wr2 	3.2112e-02
+icc_p_wr2 	0.9260    
+icc_c_wr3 	3.2112e-02
+icc_p_wr3 	0.9506    
+icc_c_wr4 	3.2112e-02
+icc_p_wr4 	1.0337    
+icc_c_wr5 	3.2112e-02
+icc_p_wr5 	1.0590    
+icc_c_wr6 	3.2112e-02
+icc_p_wr6 	1.0851    
+icc_c_wr7 	3.2112e-02
+icc_p_wr7 	1.1120    
+# Peak current specific information
+icc_c_peak	4.0392    
+icc_p_peak	182.3013  
+# Deselect current specific information
+icc_c_desel	0.0000e+00
+icc_p_desel	0.3175    
+# Leakage Current specific information 
+icc_c_standby	1.8493e-03
+icc_p_standby	1.2547e-03
+icc_c_selective_precharge	1.7974e-03
+icc_p_selective_precharge	5.5759e-04
+icc_c_standby_ret1n	1.8106e-03
+icc_p_standby_ret1n	1.3123e-04
+# Clock noise limit specific information 
+pwn_clk   	0.1163    
+vn_clk    	0.1961    
+# Supply noise limit specific information 
+vn_pwr    	0.1200    
+vn_gnd    	0.1200    
+# EMA feature specific information.
+icap_ema  	0.0010    
+temas     	1.3984    
+temah     	1.8928    
+icap_emas 	0.0255    
+temass    	1.3984    
+temash    	1.8928    
+icap_emaw 	0.0010    
+temaws    	1.3984    
+temawh    	1.8928    
+# MTCMOS feature specific information.
+icap_ret1n	0.0392    
+# MTCMOS feature setuphold specific information.  
+tret1ns   	1.3984    
+tret1nh   	1.8928    
+# MTCMOS feature specific information : Protocol sequence timing checks.  
+tret1n_cenh	1.3984    
+tcen_ret1nh	1.3984    

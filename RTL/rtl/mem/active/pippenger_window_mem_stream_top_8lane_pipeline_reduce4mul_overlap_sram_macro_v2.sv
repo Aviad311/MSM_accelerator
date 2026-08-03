@@ -1,10 +1,10 @@
 `timescale 1ns/1ps
 
-module pippenger_window_mem_stream_top_8lane_pipeline_reduce4mul_overlap #(
-    parameter int ADDR_W          = 8,
+module pippenger_window_mem_stream_top_8lane_pipeline_reduce4mul_overlap_sram_macro_v2 #(
+    parameter int ADDR_W          = 16,
     parameter int DATA_W          = 256,
     parameter int DEPTH           = (1 << ADDR_W),
-    parameter int SRAM_RD_LATENCY = 3,
+    parameter int SRAM_RD_LATENCY = 1,
     parameter int GEN_W           = 16,
 
     parameter int FIFO_DEPTH      = 16,
@@ -36,6 +36,56 @@ module pippenger_window_mem_stream_top_8lane_pipeline_reduce4mul_overlap #(
     localparam int BANK_SEL_W  = $clog2(NUM_BANKS);
     localparam int BANK_ADDR_W = ADDR_W - BANK_SEL_W;
     localparam int BANK_DEPTH  = (1 << BANK_ADDR_W);
+
+    // ------------------------------------------------------------------------
+    // Generated SRAM macro geometry checks
+    //
+    // Global bucket mapping:
+    //   16-bit global bucket ID
+    //   3 low bits select one of 8 banks
+    //   13 high bits address 8192 entries inside the selected bank
+    // ------------------------------------------------------------------------
+    initial begin
+        if (ADDR_W != 16) begin
+            $fatal(
+                1,
+                "SRAM-macro top requires ADDR_W=16, got %0d",
+                ADDR_W
+            );
+        end
+
+        if (DATA_W != 256) begin
+            $fatal(
+                1,
+                "SRAM-macro top requires DATA_W=256, got %0d",
+                DATA_W
+            );
+        end
+
+        if (BANK_ADDR_W != 13) begin
+            $fatal(
+                1,
+                "SRAM-macro top requires BANK_ADDR_W=13, got %0d",
+                BANK_ADDR_W
+            );
+        end
+
+        if (BANK_DEPTH != 8192) begin
+            $fatal(
+                1,
+                "SRAM-macro top requires BANK_DEPTH=8192, got %0d",
+                BANK_DEPTH
+            );
+        end
+
+        if (SRAM_RD_LATENCY != 1) begin
+            $fatal(
+                1,
+                "SRAM-macro top requires SRAM_RD_LATENCY=1, got %0d",
+                SRAM_RD_LATENCY
+            );
+        end
+    end
 
     typedef enum logic [3:0] {
         S_TAG_INIT,
@@ -186,7 +236,7 @@ module pippenger_window_mem_stream_top_8lane_pipeline_reduce4mul_overlap #(
     genvar bi;
     generate
         for (bi = 0; bi < NUM_BANKS; bi = bi + 1) begin : g_bucket_mem
-            bucket_mem_3coord #(
+            bucket_mem_3coord_sram_macro_v2 #(
                 .ADDR_W          (BANK_ADDR_W),
                 .DATA_W          (DATA_W),
                 .DEPTH           (BANK_DEPTH),
